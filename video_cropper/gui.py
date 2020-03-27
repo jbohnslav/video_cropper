@@ -1,4 +1,4 @@
-from mainwindow import Ui_MainWindow
+# from mainwindow import Ui_MainWindow
 import sys
 from PySide2 import QtCore, QtWidgets, QtGui
 from PySide2.QtWidgets import (QMainWindow, QFileDialog, QMessageBox, QInputDialog, QLabel,
@@ -7,7 +7,9 @@ from PySide2.QtCore import Signal, Slot
 import os
 from typing import Union
 import traceback
-from custom_widgets import Toolbar, VideoPlayer
+from .custom_widgets import Toolbar, VideoPlayer
+from .crop import crop_video
+import warnings
 
 class MainWindow(QMainWindow):
     def __init__(self, debug: bool = False):
@@ -28,18 +30,26 @@ class MainWindow(QMainWindow):
         centralWidget.setLayout(mainLayout)
         self.setCentralWidget(centralWidget)
 
+        # define variables needed in functions
+        self.videofile = None
+
         # hook up all our signals and slots
+
+        self.overlay = self.videoPlayer.videoView._scene
+        self.videoPlayer.videoView.initialized.connect(self.overlay.set_enabled)
+
         self.toolbar.openVideo.clicked.connect(self.open_avi_browser)
-        self.videoPlayer.videoView._scene.Height.connect(self.toolbar.update_height)
-        # self.videoPlayer.videoView._scene.Height.connect(self.toolbar.update_height)
-        # self.videoPlayer.videoView._scene.Height.connect(self.toolbar.update_height)
-        # self.videoPlayer.videoView._scene.Height.connect(self.toolbar.update_height)
+        self.overlay.Height.connect(self.toolbar.update_height)
+        self.overlay.Width.connect(self.toolbar.update_width)
+        self.overlay.X.connect(self.toolbar.update_x)
+        self.overlay.Y.connect(self.toolbar.update_y)
+        self.toolbar.Width.connect(self.overlay.change_width)
+        self.toolbar.Height.connect(self.overlay.change_height)
+        self.toolbar.X.connect(self.overlay.change_x)
+        self.toolbar.Y.connect(self.overlay.change_y)
+        self.toolbar.cropButton.clicked.connect(self.crop_video)
 
         self.update()
-
-
-
-
         # self.ui = Ui_MainWindow()
         # self.ui.setupUi(self)
         # self.ui.openVideo.clicked.connect(self.open_avi_browser)
@@ -67,11 +77,62 @@ class MainWindow(QMainWindow):
             self.vid = self.videoPlayer.videoView.vid
             # for convenience
             self.n_timepoints = len(self.videoPlayer.videoView.vid)
+
+            # get rid of previous info
+            self.overlay.clear_rect()
+            self.toolbar.clear_text()
         except BaseException as e:
             print('Error initializing video: {}'.format(e))
             tb = traceback.format_exc()
             print(tb)
             return
+
+    def crop_video(self):
+        if self.videofile is None:
+            return
+        if not self.overlay.has_rect:
+            return
+        options = QFileDialog.Options()
+        directory = os.path.dirname(self.videofile)
+        default_name, _ = os.path.splitext(os.path.basename(self.videofile))
+        default_name += '_cropped'
+        filename, _ = QFileDialog.getSaveFileName(self, 'Video to crop', os.path.join(directory, default_name),
+                                                  options=options)
+        outfile, _ = os.path.splitext(filename) # ignore what user put in
+        selected_format = self.toolbar.exportFormat.currentText()
+        movie_format = self.toolbar.formats[selected_format]
+        x, y, w, h = self.overlay.get_rect_coords()
+        x, y, w, h = int(x), int(y), int(w), int(h)
+        if movie_format == 'ffmpeg':
+            w, h = self.make_even(x, y, w, h)
+        crop_video(self.videofile, outfile, x, y, w, h, movie_format=movie_format)
+
+    def make_even(self, x,y,w,h):
+        if (w % 2) == 0 and (h % 2) == 0:
+            return w, h
+        warnings.warn('with ffmpeg, width and height must be even. adjusting...')
+        imw, imh = self.overlay.w, self.overlay.h
+
+        max_y = y + h + 1
+        if (w % 2) != 0:
+            max_x = x + w + 1
+            if max_x > imw:
+                w = w - 1
+            else:
+                w = w + 1
+            self.overlay.change_width(float(w))
+        if (h % 2) != 0:
+            if max_y > imh:
+                h = h - 1
+            else:
+                h = h + 1
+            self.overlay.change_height(float(h))
+        self.update()
+        return w, h
+
+
+
+
 
 def run():
     app = QtWidgets.QApplication(sys.argv)

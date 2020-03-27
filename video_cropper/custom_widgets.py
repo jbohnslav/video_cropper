@@ -5,7 +5,7 @@ from PySide2.QtGui import QPainter, QBrush, QPen, QPixmap
 from typing import Union, Tuple
 import os
 
-from video_cropper.file_io import VideoReader
+from .file_io import VideoReader
 import numpy as np
 
 
@@ -45,7 +45,6 @@ class VideoFrame(QtWidgets.QGraphicsView):
         super().__init__(*args, **kwargs)
 
         # self.videoView = QtWidgets.QGraphicsView()
-
         # self._scene = QtWidgets.QGraphicsScene(self)
         self._scene = CroppingOverlay(parent=self)
         self._photo = QtWidgets.QGraphicsPixmapItem()
@@ -75,13 +74,13 @@ class VideoFrame(QtWidgets.QGraphicsView):
             # if hasattr(self.vid, 'cap'):
             #     self.vid.cap.release()
         self.videofile = videofile
-
         self.vid = VideoReader(videofile)
         # self.frame = next(self.vid)
         self.initialized.emit(len(self.vid))
-        self.update_frame(0)
+        # there was a bug where sometimes subsequent videos with the same frame would not update the image
+        self.update_frame(0, force_update=True)
 
-    def update_frame(self, value):
+    def update_frame(self, value, force_update: bool=False):
         # print('updating')
         # print('update to: {}'.format(value))
         # print(self.current_fnum)
@@ -90,7 +89,7 @@ class VideoFrame(QtWidgets.QGraphicsView):
             return
         value = int(value)
         if hasattr(self, 'current_fnum'):
-            if self.current_fnum == value:
+            if self.current_fnum == value and not force_update:
                 # print('already there')
                 return
         if value < 0:
@@ -278,6 +277,11 @@ class VideoPlayer(QtWidgets.QWidget):
 
 
 class Toolbar(QtWidgets.QWidget):
+    Width = Signal(float)
+    Height = Signal(float)
+    X = Signal(float)
+    Y = Signal(float)
+
     def __init__(self, parent=None, *args, **kwargs):
         # https://pythonspot.com/pyqt5-form-layout/
         super().__init__(*args, **kwargs)
@@ -322,8 +326,8 @@ class Toolbar(QtWidgets.QWidget):
         for fmt in list(self.formats.keys()):
             self.exportFormat.addItem(fmt)
         exportLayout.addRow(QLabel('Format: '), self.exportFormat)
-        self.exportName = QLineEdit()
-        exportLayout.addRow(QLabel('Name: '), self.exportName)
+        # self.exportName = QLineEdit()
+        # exportLayout.addRow(QLabel('Name: '), self.exportName)
         exportWidget.setSizePolicy(sizePolicy)
         exportWidget.setLayout(exportLayout)
 
@@ -335,77 +339,63 @@ class Toolbar(QtWidgets.QWidget):
         mainLayout.addWidget(self.cropButton)
         mainLayout.setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)
 
-
         self.setLayout(mainLayout)
+        self.height_edit.returnPressed.connect(self.text_changed)
+        self.width_edit.returnPressed.connect(self.text_changed)
+        self.x_edit.returnPressed.connect(self.text_changed)
+        self.y_edit.returnPressed.connect(self.text_changed)
 
         self.update()
 
     @Slot(float)
     def update_height(self, value: float):
+        value = int(value)
         current_height = self.height_edit.text()
         if current_height != '{}'.format(value):
             self.height_edit.setText(str(int(value)))
 
+    @Slot(float)
+    def update_width(self, value: float):
+        value = int(value)
+        current_width = self.width_edit.text()
+        if current_width != '{}'.format(value):
+            self.width_edit.setText(str(int(value)))
 
-# class CroppingOverlay(QtWidgets.QGraphicsScene):
-#     # https://stackoverflow.com/questions/52728462/pyqt-add-rectangle-in-qgraphicsscene
-#     def __init__(self, parent=None, *args, **kwargs):
-#         super().__init__(QtCore.QRectF(-500, -500, 1000, 1000), *args, **kwargs)
-#         self._start = QtCore.QPointF()
-#         self._current_rect_item = None
-#
-#     def mousePressEvent(self, event):
-#         if self.itemAt(event.scenePos(), QtGui.QTransform()) is None:
-#             self._current_rect_item = QtWidgets.QGraphicsRectItem()
-#             self._current_rect_item.setBrush(QtCore.Qt.red)
-#             self._current_rect_item.setFlag(QtWidgets.QGraphicsItem.ItemIsMovable, True)
-#             self.addItem(self._current_rect_item)
-#             self._start = event.scenePos()
-#             r = QtCore.QRectF(self._start, self._start)
-#             self._current_rect_item.setRect(r)
-#         super().mousePressEvent(event)
-#
-#     def mouseMoveEvent(self, event):
-#         if self._current_rect_item is not None:
-#             r = QtCore.QRectF(self._start, event.scenePos()).normalized()
-#             self._current_rect_item.setRect(r)
-#         super().mouseMoveEvent(event)
-#
-#     def mouseReleaseEvent(self, event):
-#         self._current_rect_item = None
-#         super().mouseReleaseEvent(event)
+    @Slot(float)
+    def update_x(self, value: float):
+        current_x = self.x_edit.text()
+        value = int(value)
+        if current_x != '{}'.format(value):
+            self.x_edit.setText(str(int(value)))
 
-class Menu(QMainWindow):
+    @Slot(float)
+    def update_y(self, value: float):
+        current_y = self.x_edit.text()
+        value = int(value)
+        if current_y != '{}'.format(value):
+            self.y_edit.setText(str(int(value)))
 
-    def __init__(self):
-        super().__init__()
-        self.drawing = False
-        self.lastPoint = QPoint()
-        self.image = QPixmap("picture.png")
-        self.setGeometry(100, 100, 500, 300)
-        self.resize(self.image.width(), self.image.height())
-        self.show()
+    def text_changed(self):
+        x, y, w, h = self.x_edit.text(), self.y_edit.text(), self.width_edit.text(), self.height_edit.text()
+        if x != '':
+            x = int(x)
+            self.X.emit(x)
+        if y != '':
+            y = int(y)
+            self.Y.emit(y)
+        if w != '':
+            w = int(w)
+            self.Width.emit(w)
+        if h != '':
+            h = int(h)
+            self.Height.emit(h)
+        # print(x, y, w, h)
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.drawPixmap(self.rect(), self.image)
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.drawing = True
-            self.lastPoint = event.pos()
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() and Qt.LeftButton and self.drawing:
-            painter = QPainter(self.image)
-            painter.setPen(QPen(Qt.red, 3, Qt.SolidLine))
-            painter.drawLine(self.lastPoint, event.pos())
-            self.lastPoint = event.pos()
-            self.update()
-
-    def mouseReleaseEvent(self, event):
-        if event.button == Qt.LeftButton:
-            self.drawing = False
+    def clear_text(self):
+        self.x_edit.setText('')
+        self.y_edit.setText('')
+        self.width_edit.setText('')
+        self.height_edit.setText('')
 
 
 class CroppingOverlay(QtWidgets.QGraphicsScene):
@@ -428,10 +418,14 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
         self.h = None
         self.has_image = False
         self.border_id = None
+        self.enabled = False
+        self.has_rect = False
 
     def initialize_rect(self, event):
+        if not self.enabled:
+            return
         self._rect = QtWidgets.QGraphicsRectItem()
-        pen = QPen(Qt.black, 3, Qt.SolidLine, Qt.FlatCap, Qt.RoundJoin)
+        pen = QPen(Qt.black, 2, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin)
         self._rect.setPen(pen)
         # because of the resizing logic,
         self._rect.setFlag(QtWidgets.QGraphicsItem.ItemIsMovable, False)
@@ -441,6 +435,16 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
         self._start = event.scenePos()
         r = QtCore.QRectF(self._start, self._start)
         self._rect.setRect(r)
+        self.has_rect = True
+
+
+    def clear_rect(self):
+        if self._rect is None:
+            return
+        self.removeItem(self._rect)
+        self._rect = None
+        self.has_rect = False
+
 
     def mousePressEvent(self, event):
         if not self.has_image:
@@ -457,9 +461,6 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
                 self.border_id = self.get_border_id(event)
                 if self.border_id is not None:
                     self.is_resizing = True
-
-
-
         # print(event)
 
         super().mousePressEvent(event)
@@ -506,7 +507,7 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
                 border_id = 'bottom-left'
             else:
                 border_id = 'left'
-        elif abs(clickx - (x+width)) < border:
+        elif abs(clickx - (x + width)) < border:
             # near the right edge
             if abs(clicky - y) < border:
                 border_id = 'top-right'
@@ -516,7 +517,7 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
                 border_id = 'right'
         elif abs(clicky - y) < border:
             border_id = 'top'
-        elif abs(clicky - (y+height)) < border:
+        elif abs(clicky - (y + height)) < border:
             border_id = 'bottom'
 
         return border_id
@@ -530,6 +531,20 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
         self.Y.emit(y)
         self.Width.emit(w)
         self.Height.emit(h)
+
+
+    def set_rect(self, x, y, w, h):
+        if x < 0 or x > self.w:
+            return
+        if y < 0 or y > self.h:
+            return
+        if w < 1 or h < 1:
+            return
+        if not self.is_in_bounds(x, y):
+            return
+        self._rect.setRect(x, y, w, h)
+        self.emit_rect()
+
 
     def mouseMoveEvent(self, event):
         if self._rect is None:
@@ -547,12 +562,7 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
         elif self.is_moving:
             new_x = x + dx
             new_y = y + dy
-            if self.is_in_bounds(new_x, new_y):
-                self._rect.setRect(x + dx, y + dy, w, h)
-                self.emit_rect()
-            # print(dir(self._rect))
-            # print(lastx, thisx, lasty, thisy)
-            # print(event)
+            self.set_rect(new_x, new_y, w, h)
         elif self.is_resizing:
 
             if 'left' in self.border_id:
@@ -565,9 +575,7 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
                 h = h + dy
             if 'right' in self.border_id:
                 w = w + dx
-            if w > 1 and h > 1:
-                self._rect.setRect(x , y , w, h)
-                self.emit_rect()
+            self.set_rect(x, y, w, h)
 
         super().mouseMoveEvent(event)
 
@@ -575,7 +583,7 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
         x, y, w, h = self.get_rect_coords()
         image_width, image_height = self.w, self.h
         # print(new_x, w, image_width, image_height)
-        if new_x + w < image_width and new_y + h < image_height and new_x > 0 and new_y > 0:
+        if new_x + w < image_width and new_y + h < image_height and new_x >= 0 and new_y >= 0:
             return True
         else:
             return False
@@ -600,6 +608,52 @@ class CroppingOverlay(QtWidgets.QGraphicsScene):
         self.is_moving = False
         self.is_resizing = False
         super().mouseReleaseEvent(event)
+
+    @Slot(float)
+    def change_width(self, value: float):
+        if self._rect is None:
+            return
+        x, y, w, h = self.get_rect_coords()
+        w = int(w)
+        value = int(value)
+        if w != value:
+            # print('changing width in slot from {} to {}. Should happen when text has been changed'.format(w, value))
+            self.set_rect(x, y, value, h)
+
+    @Slot(float)
+    def change_height(self, value: float):
+        if self._rect is None:
+            return
+        x, y, w, h = self.get_rect_coords()
+        h = int(h)
+        value = int(value)
+        if h != value:
+            self.set_rect(x, y, w, value)
+
+    @Slot(float)
+    def change_x(self, value: float):
+        if self._rect is None:
+            return
+        x, y, w, h = self.get_rect_coords()
+        x = int(x)
+        value = int(value)
+        if x != value:
+            self.set_rect(value, y, w, h)
+
+    @Slot(float)
+    def change_y(self, value: float):
+        if self._rect is None:
+            return
+        x, y, w, h = self.get_rect_coords()
+        y = int(y)
+        value = int(value)
+        if y != value:
+            self.set_rect(x, value, w, h)
+
+    @Slot(bool)
+    def set_enabled(self, value: bool):
+        self.enabled = value
+
 
 
 class MainWindow(QtWidgets.QMainWindow):

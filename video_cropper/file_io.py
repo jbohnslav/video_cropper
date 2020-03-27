@@ -172,7 +172,7 @@ class VideoReader:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         # keep track of current frame to optimize sequential reads
         self.fnum += 1
-        return (frame)
+        return frame
 
     def read(self, framenum: int) -> np.ndarray:
         """Read the frame indicated in framenum from disk
@@ -419,6 +419,16 @@ class VideoWriter:
         """
         assert (movie_format in ['opencv', 'hdf5', 'ffmpeg', 'directory'])
         self.filename = filename
+
+        base, ext = os.path.splitext(self.filename)
+
+        default_endings = {'opencv': '.avi',
+                           'hdf5': '.h5',
+                           'ffmpeg': '.mp4',
+                           'directory': ''}
+        if ext == '':
+            self.filename += default_endings[movie_format]
+
         if movie_format == 'directory':
             assert (filetype in ['.bmp', '.jpg', '.png', '.jpeg', '.tiff', '.tif'])
             # save it as "codec" so that initialization and write funcs have this info
