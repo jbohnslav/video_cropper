@@ -29,6 +29,7 @@ and then hit `enter`. It will update the cropping area, if possible
   * HDF5: an HDF5 database of jpeg-encoded bytestrings. Much better random reads than video formats
   * jpeg folder: each image is saved as a .jpg in its own directory. Best random reads, large filesize, and hard to 
   move around
+
   
   
   
