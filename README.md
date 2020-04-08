@@ -11,6 +11,8 @@ installing PySide2 from pip.
 
 To encode videos using libx264, please install ffmpeg on your system: [link here](https://ffmpeg.org/download.html)
 
+Note: to install into your own anaconda environment, you'll have to install the dependencies yourself. The most important one is PySide2, which you must install with Anaconda (for some reason): `conda install -c conda-forge pyside2`. the other packages can be installed as normal with pip: `pip install PACKAGENAME`. 
+
 ## Usage
 Now that it's installed, run the command line anywhere and make sure that the `cropper` env is activated.
 Run `python -m video_cropper`
