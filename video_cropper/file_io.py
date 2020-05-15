@@ -133,6 +133,7 @@ class VideoReader:
             assert (len(imagefiles)) > 0
             self.file_object = imagefiles
             self.nframes = len(self.file_object)
+            self.fps = None
         else:
             _, ext = os.path.splitext(filename)
             ext = ext[1:]
@@ -141,10 +142,12 @@ class VideoReader:
                 self.filetype = 'hdf5'
                 self.file_object = h5py.File(filename, 'r')
                 self.nframes = len(self.file_object['frame'])
+                self.fps = None
             elif ext == 'avi' or ext == 'mp4':
                 self.filetype = 'video'
                 self.file_object = cv2.VideoCapture(filename)
                 self.nframes = int(self.file_object.get(cv2.CAP_PROP_FRAME_COUNT))
+                self.fps = self.file_object.get(cv2.CAP_PROP_FPS)
             else:
                 raise ValueError('unknown file extension: {}'.format(ext))
         self.ext = ext
@@ -395,7 +398,7 @@ class VideoWriter:
     """
 
     def __init__(self, filename: Union[str, bytes, os.PathLike], height: int = None, width: int = None,
-                 fps: int = 30, movie_format: str = 'opencv', codec: str = 'MJPG', filetype='.jpg',
+                 fps: Union[int,float] = 30, movie_format: str = 'opencv', codec: str = 'MJPG', filetype='.jpg',
                  colorspace: str = 'RGB', asynchronous: bool = True, verbose: bool = False) -> None:
         """Initializes a VideoWriter object.
 
