@@ -10,6 +10,17 @@ import traceback
 from .custom_widgets import Toolbar, VideoPlayer
 from .crop import crop_video
 import warnings
+# import pathlib
+import logging
+
+logging.basicConfig(format='[%(asctime)s %(name)-12s] %(levelname)-8s %(message)s', datefmt='%y%m%d_%H%M%S')
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+log.addHandler(console)
+
+suffixes = ['.h5', '.mp4', '.avi']
 
 class MainWindow(QMainWindow):
     def __init__(self, debug: bool = False):
@@ -98,14 +109,21 @@ class MainWindow(QMainWindow):
         default_name += '_cropped'
         filename, _ = QFileDialog.getSaveFileName(self, 'Video to crop', os.path.join(directory, default_name),
                                                   options=options)
-        outfile, _ = os.path.splitext(filename) # ignore what user put in
+        for suffix in suffixes:
+            if filename.endswith(suffix):
+                filename = filename.replace(suffix, '')
+        # outfile, ext = os.path.splitext(filename) # ignore what user put in
+        # outfile = pathlib.Path(filename)
+        # outfile = outfile.with_suffix('')
         selected_format = self.toolbar.exportFormat.currentText()
         movie_format = self.toolbar.formats[selected_format]
+
         x, y, w, h = self.overlay.get_rect_coords()
         x, y, w, h = int(x), int(y), int(w), int(h)
         if movie_format == 'ffmpeg':
             w, h = self.make_even(x, y, w, h)
-        crop_video(self.videofile, outfile, x, y, w, h, movie_format=movie_format)
+        log.info('filename: {}'.format(filename))
+        crop_video(self.videofile, filename, x, y, w, h, movie_format=movie_format)
 
     def make_even(self, x,y,w,h):
         if (w % 2) == 0 and (h % 2) == 0:

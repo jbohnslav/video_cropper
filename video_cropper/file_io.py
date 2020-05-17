@@ -9,6 +9,15 @@ import numpy as np
 import subprocess as sp
 from queue import Queue
 from threading import Thread
+import logging
+import pathlib
+
+logging.basicConfig(format='[%(asctime)s %(name)-12s] %(levelname)-8s %(message)s', datefmt='%y%m%d_%H%M%S')
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+log.addHandler(console)
 
 class VideoPlayer:
     def __init__(self,
@@ -127,7 +136,8 @@ class VideoReader:
             files = [os.path.join(filename, i) for i in files]
             imagefiles = []
             for i in files:
-                _, ext = os.path.splitext(i)
+                ext = pathlib.Path(i).suffix
+                # _, ext = os.path.splitext(i)
                 if ext in endings:
                     imagefiles.append(i)
             assert (len(imagefiles)) > 0
@@ -244,13 +254,14 @@ class VideoReader:
 
 
 def initialize_hdf5(filename, framesize=None, codec=None, fps=None):
-    base, ext = os.path.splitext(filename)
-    filename = base + '.h5'
+    # base, ext = os.path.splitext(filename)
+    filename = pathlib.Path(filename)
+    filename = filename.with_suffix('.h5')
     f = h5py.File(filename, 'w')
     datatype = h5py.special_dtype(vlen=np.dtype('uint8'))
     dset = f.create_dataset('frame', (0,), maxshape=(None,), dtype=datatype)
     # dset = f.create_dataset('right', (0,), maxshape=(None,),dtype=datatype)
-    return (f)
+    return f
 
 
 def write_frame_hdf5(writer_obj, frame, axis=0, quality: int = 80):
@@ -272,7 +283,7 @@ def initialize_opencv(filename, framesize, codec, fps: float = 30.0):
         fourcc = cv2.VideoWriter_fourcc(*codec)
     # fourcc = -1
     writer = cv2.VideoWriter(filename, fourcc, fps, framesize)
-    return (writer)
+    return writer
 
 
 def write_frame_opencv(writer_obj, frame):
@@ -399,7 +410,7 @@ class VideoWriter:
 
     def __init__(self, filename: Union[str, bytes, os.PathLike], height: int = None, width: int = None,
                  fps: Union[int,float] = 30, movie_format: str = 'opencv', codec: str = 'MJPG', filetype='.jpg',
-                 colorspace: str = 'RGB', asynchronous: bool = True, verbose: bool = False) -> None:
+                 colorspace: str = 'RGB', asynchronous: bool = True) -> None:
         """Initializes a VideoWriter object.
 
         Args:
@@ -422,14 +433,17 @@ class VideoWriter:
         """
         assert (movie_format in ['opencv', 'hdf5', 'ffmpeg', 'directory'])
         self.filename = filename
-
+        log.debug('filename: {}'.format(filename))
         base, ext = os.path.splitext(self.filename)
+        # ext = pathlib.Path(filename).suffix
 
         default_endings = {'opencv': '.avi',
                            'hdf5': '.h5',
                            'ffmpeg': '.mp4',
                            'directory': ''}
-        if ext == '':
+        log.debug('filename in videowriter: {}'.format(filename))
+        if ext == '' or len(ext) > 4:
+            # handles the case where there's no suffix but there is a period somewhere in the actual filename
             self.filename += default_endings[movie_format]
 
         if movie_format == 'directory':
@@ -437,9 +451,10 @@ class VideoWriter:
             # save it as "codec" so that initialization and write funcs have this info
             self.codec = filetype
         else:
+
             base, ext = os.path.splitext(self.filename)
             if movie_format == 'opencv' or movie_format == 'ffmpeg':
-                assert (ext in ['.avi', '.mp4'])
+                assert ext in ['.avi', '.mp4'], 'invalid extension {} in filename {}'.format(ext, filename)
             self.codec = codec
         self.height = height
         self.width = width
@@ -451,7 +466,7 @@ class VideoWriter:
 
         self.colorspace = colorspace
         assert (self.colorspace in ['BGR', 'RGB', 'GRAY'])
-        self.verbose = verbose
+        # self.verbose = verbose
         self.asynchronous = asynchronous
 
         if movie_format == 'hdf5':
@@ -577,12 +592,10 @@ class VideoWriter:
         if self.asynchronous:
             # wait for save worker to complete, then finish
             self.save_queue.put(None)
-            if self.verbose:
-                print('joining...')
+            log.debug('joining...')
             self.save_queue.join()
-            if self.verbose:
-                print('joined.')
-            del (self.save_queue)
+            log.debug('joined.')
+            del self.save_queue
         if hasattr(self, 'writer_obj'):
             # print('videoobj')
             if self.movie_format == 'opencv':
