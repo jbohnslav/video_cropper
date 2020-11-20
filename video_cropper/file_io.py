@@ -146,14 +146,14 @@ class VideoReader:
             self.fps = None
         else:
             _, ext = os.path.splitext(filename)
-            ext = ext[1:]
+            ext = ext[1:].lower()
 
             if ext == 'h5':
                 self.filetype = 'hdf5'
                 self.file_object = h5py.File(filename, 'r')
                 self.nframes = len(self.file_object['frame'])
                 self.fps = None
-            elif ext == 'avi' or ext == 'mp4':
+            elif ext == 'avi' or ext == 'mp4' or ext == 'mov':
                 self.filetype = 'video'
                 self.file_object = cv2.VideoCapture(filename)
                 self.nframes = int(self.file_object.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -267,10 +267,11 @@ def initialize_hdf5(filename, framesize=None, codec=None, fps=None):
 def write_frame_hdf5(writer_obj, frame, axis=0, quality: int = 80):
     # ret1, left_jpg = cv2.imencode('.jpg', left, (cv2.IMWRITE_JPEG_QUALITY,80))
     # ret2, right_jpg = cv2.imencode('.jpg', right, (cv2.IMWRITE_JPEG_QUALITY,80))
-    ret, jpg = cv2.imencode('.jpg', frame, (cv2.IMWRITE_JPEG_QUALITY, quality))
+    # ret, jpg = cv2.imencode('.jpg', frame, (cv2.IMWRITE_JPEG_QUALITY, quality))
+    ret, encoded = cv2.imencode('.png', frame)
     writer_obj['frame'].resize(writer_obj['frame'].shape[axis] + 1, axis=axis)
     # f['left'].resize(f['left'].shape[axis]+1, axis=axis)
-    writer_obj['frame'][-1] = jpg.squeeze()
+    writer_obj['frame'][-1] = encoded.squeeze()
 
 
 def initialize_opencv(filename, framesize, codec, fps: float = 30.0):
