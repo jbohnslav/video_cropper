@@ -265,12 +265,13 @@ def initialize_hdf5(filename, framesize=None, codec=None, fps=None):
 
 
 def write_frame_hdf5(writer_obj, frame, axis=0, quality: int = 80):
+    """ Writes frames to an HDF5 file by encoding them as JPEG bytestrings """
     # ret1, left_jpg = cv2.imencode('.jpg', left, (cv2.IMWRITE_JPEG_QUALITY,80))
     # ret2, right_jpg = cv2.imencode('.jpg', right, (cv2.IMWRITE_JPEG_QUALITY,80))
-    ret, jpg = cv2.imencode('.jpg', frame, (cv2.IMWRITE_JPEG_QUALITY, quality))
+    ret, encoded = cv2.imencode('.png', frame)
     writer_obj['frame'].resize(writer_obj['frame'].shape[axis] + 1, axis=axis)
     # f['left'].resize(f['left'].shape[axis]+1, axis=axis)
-    writer_obj['frame'][-1] = jpg.squeeze()
+    writer_obj['frame'][-1] = encoded.squeeze()
 
 
 def initialize_opencv(filename, framesize, codec, fps: float = 30.0):
