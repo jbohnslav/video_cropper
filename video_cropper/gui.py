@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
 
     def open_avi_browser(self):
         options = QFileDialog.Options()
-        filestring = 'VideoReader files (*.h5 *.avi *.mp4)'
+        filestring = 'VideoReader files (*.h5 *.avi *.mp4, *.mov)'
         filename, _ = QFileDialog.getOpenFileName(self, "Click on video to open", None,
                                                   filestring, options=options)
         if len(filename) == 0 or not os.path.isfile(filename):

@@ -146,14 +146,14 @@ class VideoReader:
             self.fps = None
         else:
             _, ext = os.path.splitext(filename)
-            ext = ext[1:]
+            ext = ext[1:].lower()
 
             if ext == 'h5':
                 self.filetype = 'hdf5'
                 self.file_object = h5py.File(filename, 'r')
                 self.nframes = len(self.file_object['frame'])
                 self.fps = None
-            elif ext == 'avi' or ext == 'mp4':
+            elif ext == 'avi' or ext == 'mp4' or ext == 'mov':
                 self.filetype = 'video'
                 self.file_object = cv2.VideoCapture(filename)
                 self.nframes = int(self.file_object.get(cv2.CAP_PROP_FRAME_COUNT))
