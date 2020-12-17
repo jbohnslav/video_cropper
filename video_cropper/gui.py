@@ -1,3 +1,5 @@
+import subprocess
+
 # from mainwindow import Ui_MainWindow
 import sys
 from PySide2 import QtCore, QtWidgets, QtGui
@@ -67,7 +69,7 @@ class MainWindow(QMainWindow):
 
     def open_avi_browser(self):
         options = QFileDialog.Options()
-        filestring = 'VideoReader files (*.h5 *.avi *.mp4, *.mov)'
+        filestring = 'VideoReader files (*.h5 *.avi *.mp4 *.mov)'
         filename, _ = QFileDialog.getOpenFileName(self, "Click on video to open", None,
                                                   filestring, options=options)
         if len(filename) == 0 or not os.path.isfile(filename):
@@ -123,7 +125,11 @@ class MainWindow(QMainWindow):
         if movie_format == 'ffmpeg':
             w, h = self.make_even(x, y, w, h)
         log.info('filename: {}'.format(filename))
-        crop_video(self.videofile, filename, x, y, w, h, movie_format=movie_format)
+        args = ['python', '-m', 'video_cropper.crop', '-i', self.videofile, '-o', filename,
+                         '-x', str(x), '-y', str(y), '-w', str(w), '--height', str(h), '--movie_format', movie_format]
+        log.info('args for subprocess call: {}'.format(args))
+        subprocess.Popen(args)
+        # crop_video(self.videofile, filename, x, y, w, h, movie_format=movie_format)
 
     def make_even(self, x,y,w,h):
         if (w % 2) == 0 and (h % 2) == 0:

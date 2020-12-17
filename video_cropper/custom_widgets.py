@@ -5,7 +5,7 @@ from PySide2.QtGui import QPainter, QBrush, QPen, QPixmap
 from typing import Union, Tuple
 import os
 
-from .file_io import VideoReader
+from vidio import VideoReader
 import numpy as np
 
 
@@ -322,7 +322,7 @@ class Toolbar(QtWidgets.QWidget):
         self.formats = {'libx264': 'ffmpeg',
                         'MJPG': 'opencv',
                         'HDF5': 'hdf5',
-                        'JPEG folder': 'directory'}
+                        'image folder': 'directory'}
         for fmt in list(self.formats.keys()):
             self.exportFormat.addItem(fmt)
         exportLayout.addRow(QLabel('Format: '), self.exportFormat)
